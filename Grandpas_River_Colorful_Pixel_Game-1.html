@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Дедушкина речка — уютная пиксельная рыбалка</title>
+<style>
+:root{--ink:#263e3b;--muted:#708078;--cream:#fff8e9;--paper:#f6edda;--line:#dfcfaa;--green:#4f8b70;--gold:#d49b48}
+*{box-sizing:border-box}body{margin:0;padding:16px;background:radial-gradient(circle at 20% 0%,#496d61,#203b3d 60%,#172d32);font-family:ui-monospace,Consolas,monospace;color:var(--ink);display:flex;justify-content:center}
+.app{width:min(100%,900px);border:5px solid #a98251;border-radius:12px;overflow:hidden;background:var(--paper);box-shadow:0 15px 0 #14282a,0 24px 50px #0c1e2080}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(110deg,#fff4d9,#e9d7ae);border-bottom:3px solid #d2bb8d}
+h1{font-size:clamp(17px,3vw,24px);letter-spacing:1px;margin:0;color:#355d50}.sub{font-size:10px;color:#8b7959;margin-top:5px;letter-spacing:1px}
+.stats{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.chip{background:#fffaf0;border:2px solid #ddc89e;border-radius:8px;padding:7px 10px;font-size:11px;box-shadow:0 2px 0 #c6ad7d}
+.scene-wrap{padding:12px;background:linear-gradient(135deg,#f1dfb9,#d4c091)}.scene{border:4px solid #5d503b;border-radius:8px;overflow:hidden;box-shadow:0 5px 0 #b49a6a;background:#8ec9bb}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges}
+.info{padding:14px 16px 8px;background:#fff9ed;text-align:center}.message{font-size:12px;line-height:1.6;min-height:38px}
+.controls{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;padding:10px 14px 15px;background:#fff9ed}
+button{font:bold 12px ui-monospace,monospace;letter-spacing:.4px;border:0;border-bottom:4px solid #315b4b;border-radius:8px;background:linear-gradient(#69a982,#4e856b);color:#fffdf2;padding:12px 20px;cursor:pointer;box-shadow:0 3px 0 #d7c8a7;transition:filter .12s,transform .12s}
+button:hover{filter:brightness(1.07);transform:translateY(-1px)}button:active{transform:translateY(2px);border-bottom-width:2px}button.primary{background:linear-gradient(#edbd62,#d09239);border-color:#99652d}button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.progress-area{padding:0 16px 14px;background:#fff9ed}.meter{height:14px;max-width:470px;margin:0 auto;background:#e8dfca;border:2px solid #c7b58e;border-radius:20px;overflow:hidden;display:none}.fill{height:100%;width:0;background:linear-gradient(90deg,#76ba81,#e4c45e);transition:width .12s}
+.catch{display:none;text-align:center;max-width:470px;margin:8px auto 0;padding:10px;border:2px solid #e0c995;border-radius:9px;background:#fff1c9;font-size:12px;line-height:1.6}
+.collection{padding:13px 16px;background:linear-gradient(110deg,#e6f0dc,#f2e8cd);border-top:3px solid #d7c49a}
+.collection h2{font-size:12px;letter-spacing:1px;color:#54735e;margin:0 0 9px}.fishlist{display:flex;gap:7px;flex-wrap:wrap}
+.fish{font-size:10px;padding:7px 9px;border-radius:7px;background:#fff9ed;border:1px solid #d5c49d;box-shadow:0 2px 0 #d8c9a7}.unknown{color:#a79b82;background:#f2ead9}
+.common{color:#63815b}.rare{color:#327ca0}.legendary{color:#ae781d}.mythic{color:#9252a2}
+.hint{text-align:center;font-size:10px;color:#7a806e;padding:0 12px 13px;background:#f2e8cd}
+@media(max-width:520px){body{padding:4px}.app{border-width:3px}.scene-wrap{padding:6px}.controls{gap:6px}.controls button{flex:1;padding:12px 8px}.chip{font-size:10px;padding:6px 8px}}
+</style></head><body><main class="app">
+<header><div><h1>🌿 ДЕДУШКИНА РЕЧКА</h1><div class="sub">ТИХИЙ ВЕЧЕР • ТЁПЛОЕ СОЛНЦЕ • БОЛЬШАЯ РЫБАЛКА</div></div><div class="stats"><div class="chip">🪙 <span id="coins">0</span></div><div class="chip">🐟 <span id="total">0</span></div></div></header>
+<div class="scene-wrap"><div class="scene"><canvas id="art" width="480" height="270"></canvas></div></div>
+<div class="info"><div class="message" id="message">Дедушка устроился поудобнее. Забрось удочку и попробуй поймать редкую рыбку.</div></div>
+<div class="controls"><button id="cast" class="primary">🎣 ЗАБРОСИТЬ</button><button id="hook" disabled>✨ ПОДСЕЧЬ!</button><button id="reel" disabled>🐟 ВЫТАЩИТЬ</button></div>
+<div class="progress-area"><div class="meter" id="meter"><div class="fill" id="meterFill"></div></div><div class="catch" id="catch"></div></div>
+<div class="collection"><h2>📖 ТВОЯ КОЛЛЕКЦИЯ РЫБ</h2><div class="fishlist" id="fishlist"></div></div>
+<div class="hint">Обычная • Редкая • Легендарная • Мифическая — собери их всех!</div>
+</main>
+<script>
+const cv=document.getElementById('art'),g=cv.getContext('2d');g.imageSmoothingEnabled=false;
+const $=id=>document.getElementById(id);
+const types=[
+{name:'Карасик',rarity:'Обычная',cls:'common',chance:57,reward:3,diff:1,color:'#d9b77b'},
+{name:'Полосатый окунь',rarity:'Редкая',cls:'rare',chance:27,reward:15,diff:1.6,color:'#e28e51'},
+{name:'Золотая щука',rarity:'Легендарная',cls:'legendary',chance:12,reward:70,diff:2.5,color:'#f0c957'},
+{name:'Светящийся сом',rarity:'Мифическая',cls:'mythic',chance:4,reward:300,diff:3.5,color:'#a99be0'}
+];
+let mode='idle',fish=null,coins=0,total=0,bag={},biteAt=0,progress=0,stress=22,t=0,mosq=0;
+function r(x,y,w,h,c){g.fillStyle=c;g.fillRect(x,y,w,h)}
+function l(x,y,a,b,c,w=1){g.strokeStyle=c;g.lineWidth=w;g.beginPath();g.moveTo(x,y);g.lineTo(a,b);g.stroke()}
+function draw(){
+ t++;
+ // warm sky gradient
+ let sky=g.createLinearGradient(0,0,0,150);sky.addColorStop(0,'#8bc7c0');sky.addColorStop(.65,'#c2dfb6');sky.addColorStop(1,'#f3d79b');r(0,0,480,270,'#8bc7c0');g.fillStyle=sky;g.fillRect(0,0,480,145);
+ // fluffy clouds
+ [[70,34],[175,52],[395,31]].forEach(([x,y])=>{r(x,y,30,8,'#f5f0d9');r(x+7,y-5,18,8,'#fff8e8');r(x+25,y+2,14,6,'#f5f0d9')});
+ // sun
+ r(35,23,27,27,'#f6d77e');r(40,18,17,5,'#f6d77e');r(31,29,5,15,'#f6d77e');
+ // layered hills
+ r(0,100,480,40,'#80a978');for(let i=0;i<9;i++){let x=i*60-15;r(x,90+(i%3)*9,48,48,i%2?'#6f9b70':'#789f70');r(x+10,83+(i%3)*9,28,15,'#83ae78')}
+ // cottage garden
+ r(347,78,74,58,'#e9c98d');r(339,68,90,17,'#9a6045');r(350,75,70,5,'#c17a51');r(356,91,15,15,'#8dc6bd');r(397,91,15,15,'#8dc6bd');r(380,107,17,29,'#805b3e');r(391,47,8,24,'#8b6952');r(389,40,12,8,'#d8d0b7');r(390,33,8,5,'#e7e3d2');
+ // grass and flowers
+ r(0,132,480,15,'#5f8d58');for(let i=0;i<30;i++){let x=(i*19)%480,y=132+(i%3)*3;r(x,y,3,4,i%2?'#e7d17b':'#f2e3b0');}
+ // reeds
+ for(let i=0;i<14;i++){let x=(i*37+8)%480;l(x,145,x-5+Math.sin(t*.03+i)*3,99+(i%4)*7,'#477a52',2);r(x-8,96+(i%4)*7,8,4,'#9a8051')}
+ // water with light ripples
+ let water=g.createLinearGradient(0,145,0,270);water.addColorStop(0,'#65b5a8');water.addColorStop(1,'#327c7c');g.fillStyle=water;g.fillRect(0,145,480,125);
+ for(let i=0;i<28;i++){let x=(i*43+t*.42)%490,y=154+(i*23)%106;l(x,y,x+10+(i%3)*6,y,i%2?'#b4ddbb':'#83cdb9',1);if(i%4===0)r((x+22)%480,y+7,3,2,'#d5e6b8')}
+ // tiny water lilies
+ [[54,207],[414,233],[88,249]].forEach(([x,y])=>{r(x,y,14,3,'#427d59');r(x+5,y-3,5,3,'#f4e9c4')});
+ // boat hull
+ r(117,205,245,10,'#805337');r(130,214,219,10,'#bd8050');r(151,223,178,5,'#674632');r(143,199,194,6,'#d39a59');r(120,203,8,8,'#e0b477');r(350,203,8,8,'#e0b477');
+ // seat
+ r(211,163,9,40,'#765035');r(197,159,52,8,'#b17c4b');r(198,165,50,4,'#815638');
+ // grandpa
+ r(204,146,39,25,'#6c9872');r(207,169,12,24,'#465b50');r(230,169,11,24,'#465b50');r(202,190,19,5,'#6c5745');r(226,190,19,5,'#6c5745');
+ r(196,150,11,8,'#e0b28c');r(240,149,10,8,'#e0b28c');r(209,124,32,28,'#e8bc96');r(207,120,36,8,'#f7ebd1');r(204,115,40,7,'#c46d4a');r(211,108,26,10,'#c46d4a');r(232,134,5,3,'#fff');r(236,135,2,2,'#3e4038');r(221,143,11,3,'#9c715a');r(207,130,5,10,'#d2a07c');
+ // rod, string and bobber
+ l(242,151,298,80,'#60432e',3);l(298,80,329,160,'#fff1d1',1);
+ let bob=160+(mode==='bite'?Math.sin(t*.85)*6:Math.sin(t*.09)*1.5);r(325,bob,7,10,'#d75c4a');r(327,bob-4,3,5,'#ffe4a3');
+ if(mode==='bite'){pixel('!',316,137,13,'#fff2a5');pixel('!',337,133,10,'#fff2a5')}
+ if(mode==='fight'&&fish){let yy=185+Math.sin(t*.35)*5;r(347,yy,24,7,fish.color);r(367,yy-3,8,6,fish.color);r(351,yy+2,4,2,'#fff1cb')}
+ // mosquitoes
+ for(let i=0;i<5;i++){let x=(mosq*1.1+i*93+30)%480,y=36+(i*29+Math.sin(t*.13+i)*7)%90;r(x,y,2,2,'#334544');l(x-3,y-2,x+4,y-2,'#627d72');l(x,y-2,x-3,y-5,'#627d72');l(x+1,y-2,x+4,y-5,'#627d72')}
+ // fireflies
+ if(t%70<35){r(285+(t%70)*2,80,2,2,'#fff0a8')}
+ mosq+=.09;requestAnimationFrame(draw)
+}
+function pixel(s,x,y,size,color){g.font=`bold ${size}px monospace`;g.fillStyle=color;g.fillText(s,x,y)}
+function say(s){$('message').innerHTML=s}
+function choose(){let n=Math.random()*100,sum=0;for(let f of types){sum+=f.chance;if(n<sum)return f}return types[0]}
+function update(){
+ $('coins').textContent=coins;$('total').textContent=total;
+ $('cast').disabled=mode!=='idle';$('hook').disabled=mode!=='bite';$('reel').disabled=mode!=='fight';
+ $('meter').style.display=mode==='fight'?'block':'none';$('meterFill').style.width=progress+'%';
+ $('meterFill').style.background=stress>75?'linear-gradient(90deg,#e18a64,#bd554c)':'linear-gradient(90deg,#77bd83,#e6c65e)';
+ $('fishlist').innerHTML=types.map(f=>`<span class="fish ${bag[f.name]?'':'unknown'}">${bag[f.name]?'★ '+f.name+' ×'+bag[f.name]:'??? '+f.rarity}</span>`).join('');
+}
+function cast(){if(mode!=='idle')return;mode='waiting';say('Поплавок тихонько качается. Внимательно следи за водой…');update();setTimeout(()=>{if(mode!=='waiting')return;fish=choose();mode='bite';biteAt=performance.now();say('<b>✨ ПОКЛЁВКА!</b> Быстрее нажимай «ПОДСЕЧЬ!»');update();setTimeout(()=>{if(mode==='bite'){mode='idle';fish=null;say('Упс! Рыбка сорвалась. Попробуй ещё раз.');update()}},fish.diff>3?750:fish.diff>2?1000:1500)},2500+Math.random()*5500)}
+function hook(){if(mode!=='bite')return;let dt=performance.now()-biteAt;if(dt>(fish.diff>3?500:fish.diff>2?760:1200)){mode='idle';fish=null;say('Чуть-чуть опоздал! Рыбка уплыла.');update();return}mode='fight';progress=0;stress=20;say(`На крючке <b>${fish.name}</b>! Нажимай «ВЫТАЩИТЬ», чтобы постепенно подтянуть её.`);update()}
+function reel(){if(mode!=='fight')return;stress+=fish.diff*(7+Math.random()*8);progress+=Math.max(2,13-fish.diff*2);if(stress>=100){mode='idle';say('Леска не выдержала! Рыбка оказалась сильнее.');fish=null}else if(progress>=100){mode='idle';total++;coins+=fish.reward;bag[fish.name]=(bag[fish.name]||0)+1;say(`<span class="${fish.cls}"><b>${fish.rarity.toUpperCase()}</b></span> — <b>${fish.name}</b>! Вот это улов! +${fish.reward} монет.`);fish=null}else say('Рыбка сопротивляется! Подтягивай осторожно — не порви леску.');update()}
+$('cast').onclick=cast;$('hook').onclick=hook;$('reel').onclick=reel;
+draw();update();
+</script></body></html>
